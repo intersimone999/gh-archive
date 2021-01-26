@@ -17,7 +17,7 @@ gem install gh-archive
 require 'gh-archive'
 
 # Download the 2015 archive in the "gz" folder
-GHADownloader.new("gz", false).download(Time.gm(2015, 1, 1), Time.gm(2015, 12, 31))
+GHADownloader.new("gz").download(Time.gm(2015, 1, 1), Time.gm(2015, 12, 31))
 
 # Download the decompressed files for the 2018 archive in the "jsons" folder
 GHADownloader.new("jsons", false).download(Time.gm(2018, 1, 1), Time.gm(2018, 12, 31))
