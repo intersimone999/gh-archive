@@ -21,6 +21,11 @@ GHADownloader.new("gz").download(Time.gm(2015, 1, 1), Time.gm(2015, 12, 31))
 
 # Download the decompressed files for the 2018 archive in the "jsons" folder
 GHADownloader.new("jsons", false).download(Time.gm(2018, 1, 1), Time.gm(2018, 12, 31))
+
+# Download the 2015 archive in the "temp" folder, keeps only the most recent 100 files
+GHADownloader.new("temp").max(100).download(Time.gm(2015, 1, 1), Time.gm(2015, 12, 31)) do |latest|
+    # do things
+end
 ```
 
 **Mining**

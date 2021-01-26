@@ -243,8 +243,15 @@ class GHADownloader
         @logger = Logger.new(STDERR)
         @decompress = decompress
         @folder = folder
+        @max = nil
+        
         Dir.mkdir(@folder) unless FileTest.exist?(@folder)
         raise "A file exist with the desired folder name #{folder}" unless FileTest.directory?(@folder)
+    end
+    
+    def max(max)
+        @max = max
+        return self
     end
     
     def logger=(logger)
@@ -252,6 +259,7 @@ class GHADownloader
     end
     
     def download(from = Time.gm(2015, 1, 1), to = Time.now)
+        archive = []
         self.each_date(from, to) do |current_date|
             filename = self.get_gha_filename(current_date)
             out_filename = filename.clone
@@ -273,6 +281,13 @@ class GHADownloader
                         f << gz.read
                     end
                 end
+            end
+            archive << target_file
+            
+            if @max && archive.size > @max
+                last = archive.shift
+                @logger.info("Removing local file #{last}")
+                File.unlink(last)
             end
             
             yield filename if block_given?
