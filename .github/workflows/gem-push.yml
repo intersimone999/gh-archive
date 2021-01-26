@@ -1,9 +1,9 @@
 name: Ruby Gem
 
 on:
-  push:
-    tags: releases/.*
-    branches: master
+  create:
+    tags: 
+      - '*'
     
 jobs:
   build:
