@@ -101,11 +101,12 @@ class GHAProvider
 end
 
 class OnlineGHAProvider < GHAProvider
-    def initialize(max_retries = 3, proactive = false)
+    def initialize(max_retries = 3, proactive = false, proactive_pool_size = 10)
         super()
         
         @max_retries = max_retries
         @proactive = proactive
+        @proactive_pool_size = proactive_pool_size
         @cache = Cache.new
     end
     
@@ -115,7 +116,7 @@ class OnlineGHAProvider < GHAProvider
                 filename = self.get_gha_filename(current_time)
                 
                 if @cache.has?(filename)
-                    result = self.read_gha_file(@cache.get(filename))
+                    result = @cache.get(filename)
                 else
                     URI.open("http://data.gharchive.org/#{filename}") do |gz|
                         # Save to cache
@@ -123,7 +124,7 @@ class OnlineGHAProvider < GHAProvider
                     end
                 end
             rescue
-                @logger.warning($!)
+                @logger.warn($!)
             end
         end
         
@@ -136,10 +137,12 @@ class OnlineGHAProvider < GHAProvider
                 filename = self.get_gha_filename(current_time)
                 
                 URI.open("http://data.gharchive.org/#{filename}") do |gz|
-                    @cache.put(filename, gz.read)
+                    content = self.read_gha_file(gz)
+                    @cache.put(filename, content)
                     return
                 end
             rescue
+                p $!
             end
         end
     end
@@ -148,17 +151,19 @@ class OnlineGHAProvider < GHAProvider
         if @proactive
             @logger.info("Proactive download thread started")
             Thread.start do
+                pool = []
                 self.each_date(from, to) do |current_date|
-                    self.cache(current_date)
-                    @logger.info("Proactively cached #{current_date}. Cache size: #{@cache.size}")
-                    
-                    if @cache.full?
-                        @logger.info("Full cache. Waiting...")
+                    while pool.size > @proactive_pool_size || @cache.full?
+                        pool.delete_if { |t| !t.alive? }
+                        sleep 0.1
                     end
                     
-                    while @cache.full?
-                        sleep 1
+                    pool << Thread.start do
+                        self.cache(current_date)
+                        @logger.info("Proactively cached #{current_date}. Cache size: #{@cache.size}")
                     end
+                    
+                    pool.delete_if { |t| !t.alive? }
                 end
             end
         end
@@ -175,21 +180,22 @@ class OnlineGHAProvider < GHAProvider
         end
         
         def put(name, content)
-            File.open("#@folder/#{name}", 'w') do |f|
-                f << content
-            end
+            #filename = "#@folder/#{name}"
+            #File.open(filename, 'w') do |f|
+                #f << content
+            #end
             
             @mutex.synchronize do
-                @cache[name] = value
+                @cache[name] = content
             end
         end
         
         def get(name)
             @mutex.synchronize do
-                return File.read(@cache[name])
+                return @cache.delete(name)
             end
         ensure
-            self.unload(name)
+            #self.unload(name)
         end
         
         def unload(name)
@@ -204,7 +210,7 @@ class OnlineGHAProvider < GHAProvider
         
         def size
             @mutex.synchronize do
-                @cache.size
+                return @cache.size
             end
         end
         
