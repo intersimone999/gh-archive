@@ -3,6 +3,7 @@ require 'json'
 require 'open-uri'
 require 'zlib'
 require 'logger'
+require 'tmpdir'
 
 module GHAUtils
     def get_gha_filename(date)
