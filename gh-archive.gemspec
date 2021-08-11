@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name        = 'gh-archive'
-  s.version     = '0.2'
-  s.date        = '2021-01-26'
+  s.version     = '0.3'
+  s.date        = '2021-08-11'
   s.summary     = "GitHub Archive mining utility"
   s.description = "Download and analyze the GitHub events stored at GitHub archive"
   s.authors     = ["Simone Scalabrino"]
