@@ -92,7 +92,7 @@ class GHAProvider
                 end
                 next if skip
                 
-                yield event
+                yield event, current_date
             end
             
             events.clear
