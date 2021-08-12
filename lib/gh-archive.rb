@@ -4,6 +4,8 @@ require 'open-uri'
 require 'zlib'
 require 'logger'
 require 'tmpdir'
+require 'thread/pool'
+require 'thread/promise'
 
 module GHAUtils
     def get_gha_filename(date)
@@ -108,6 +110,7 @@ class OnlineGHAProvider < GHAProvider
         @max_retries = max_retries
         @proactive = proactive
         @proactive_pool_size = proactive_pool_size
+        @pool = Thread.pool(proactive_pool_size)
         @cache = Cache.new
     end
     
@@ -116,14 +119,23 @@ class OnlineGHAProvider < GHAProvider
             begin
                 filename = self.get_gha_filename(current_time)
                 
-                if @cache.has?(filename)
-                    result = @cache.get(filename)
+                if @proactive
+                    @logger.info("Waiting for cache to have #{current_time}...") unless @cache.has?(filename)
+                    
+                    while !@cache.has?(filename)
+                        sleep 1
+                    end
+
+                    return @cache.get(filename)
                 else
                     URI.open("http://data.gharchive.org/#{filename}") do |gz|
-                        # Save to cache
                         return self.read_gha_file(gz)
                     end
                 end
+            rescue Errno::ECONNRESET
+                next
+            rescue Zlib::GzipFile::Error
+                raise $!
             rescue
                 @logger.warn($!)
             end
@@ -133,59 +145,56 @@ class OnlineGHAProvider < GHAProvider
     end
     
     def cache(current_time)
+        @logger.info("Full cache. Waiting for some free slot...") if @cache.full?
+        while @cache.full?
+            sleep 1
+        end
         @max_retries.times do
             begin
                 filename = self.get_gha_filename(current_time)
-                
                 URI.open("http://data.gharchive.org/#{filename}") do |gz|
                     content = self.read_gha_file(gz)
                     @cache.put(filename, content)
                     return
                 end
+            rescue Errno::ECONNRESET
+                next
+            rescue Zlib::GzipFile::Error
+                raise $!
             rescue
-                p $!
+                @logger.warn($!)
             end
         end
     end
     
     def each(from = Time.gm(2015, 1, 1), to = Time.now)
         if @proactive
-            @logger.info("Proactive download thread started")
-            Thread.start do
-                pool = []
-                self.each_date(from, to) do |current_date|
-                    while pool.size > @proactive_pool_size || @cache.full?
-                        pool.delete_if { |t| !t.alive? }
-                        sleep 0.1
-                    end
-                    
-                    pool << Thread.start do
-                        self.cache(current_date)
-                        @logger.info("Proactively cached #{current_date}. Cache size: #{@cache.size}")
-                    end
-                    
-                    pool.delete_if { |t| !t.alive? }
+            any_ready = Thread.promise
+            
+            @logger.info("Proactively scheduling download tasks...")
+            self.each_date(from, to) do |current_date|
+                @pool.process(current_date) do |current_date|
+                    cache(current_date)
+                    any_ready << true
+                    @logger.info("Proactively cached #{current_date}. Cache size: #{@cache.size}")
                 end
             end
+            
+            ~any_ready
+            @logger.info("Download tasks successfully scheduled!")
         end
         
         super
     end
     
     class Cache
-        def initialize(folder = Dir.mktmpdir, max_size = 100)
+        def initialize(max_size = 10)
             @cache = {}
             @max_size = max_size
-            @folder = folder
             @mutex = Mutex.new
         end
         
         def put(name, content)
-            #filename = "#@folder/#{name}"
-            #File.open(filename, 'w') do |f|
-                #f << content
-            #end
-            
             @mutex.synchronize do
                 @cache[name] = content
             end
@@ -195,18 +204,6 @@ class OnlineGHAProvider < GHAProvider
             @mutex.synchronize do
                 return @cache.delete(name)
             end
-        ensure
-            #self.unload(name)
-        end
-        
-        def unload(name)
-            File.unlink(@cache[name])
-            
-            @mutex.synchronize do
-                @cache.delete(name)
-            end
-            
-            return true
         end
         
         def size

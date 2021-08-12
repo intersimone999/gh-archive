@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name        = 'gh-archive'
-  s.version     = '0.4'
-  s.date        = '2021-08-11'
+  s.version     = '0.5'
+  s.date        = '2021-08-12'
   s.summary     = "GitHub Archive mining utility"
   s.description = "Download and analyze the GitHub events stored at GitHub archive"
   s.authors     = ["Simone Scalabrino"]
@@ -11,4 +11,5 @@ Gem::Specification.new do |s|
   s.license     = "GPL-3.0-only"
   
   s.add_runtime_dependency "code-assertions", "~> 1.1.2", ">= 1.1.2"
+  s.add_runtime_dependency "thread", "~> 0.2.2", ">= 0.2.2"
 end
