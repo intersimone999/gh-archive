@@ -14,14 +14,19 @@ module GHAUtils
     
     def read_gha_file_content(gz)
         gzip = Zlib::GzipReader.new(gz)
-        content = gzip.read
-        gzip.close
-        
-        return content
+        return gzip.read
+    ensure
+        gzip.close if gzip
     end
     
-    def read_gha_file(gz)
-        content = read_gha_file_content(gz)
+    def read_gha_file(file)
+        if file.path.end_with?(".json")
+            content = file.read
+        elsif file.path.end_with?(".gz") || file.path.start_with?("/tmp/open-uri")
+            content = read_gha_file_content(file)
+        else
+            raise "Invalid file extension for #{file.path}: expected `.json.gz` or `json`,"
+        end
             
         result = []
         content.lines.each do |line|
@@ -31,11 +36,11 @@ module GHAUtils
         return result
     end
     
-    def each_date(from, to)
-        current_date = from
-        while current_date < to
-            yield current_date
-            current_date += 3600
+    def each_time(from, to)
+        current_time = from
+        while current_time < to
+            yield current_time
+            current_time += 3600
         end
     end
 end
@@ -73,13 +78,18 @@ class GHAProvider
     end
     
     def each(from = Time.gm(2015, 1, 1), to = Time.now)
-        self.each_date(from, to) do |current_date|
+        exceptions = []
+        
+        self.each_time(from, to) do |current_time|
             events = []
             begin
-                events = self.get(current_date)
-                @logger.info("Scanned #{current_date}")
-            rescue
-                @logger.error($!)
+                events = self.get(current_time)
+            rescue GHAException => e
+                @logger.warn(e.message)
+                next
+            rescue => e
+                @logger.error("An exception occurred for #{current_time}: #{e.message}")
+                exceptions << e
                 next
             end
             
@@ -94,12 +104,19 @@ class GHAProvider
                 end
                 next if skip
                 
-                yield event, current_date
+                yield event, current_time
             end
+            
+            @logger.info("Scanned #{current_time}")
             
             events.clear
             GC.start
         end
+        
+        return exceptions
+    end
+    
+    class GHAException < Exception
     end
 end
 
@@ -132,16 +149,21 @@ class OnlineGHAProvider < GHAProvider
                         return self.read_gha_file(gz)
                     end
                 end
-            rescue Errno::ECONNRESET
+            rescue Errno::ECONNRESET => e
+                @logger.warn("A server error temporary prevented the download of #{current_time}: " + e.message)
                 next
-            rescue Zlib::GzipFile::Error
-                raise $!
-            rescue
-                @logger.warn($!)
+            rescue OpenURI::HTTPError => e
+                code = e.io.status[0]
+                if code.start_with?("5")
+                    @logger.warn("A server error temporary prevented the download of #{current_time}: " + e.message)
+                    next
+                else
+                    raise e
+                end
             end
         end
         
-        raise DownloadArchiveException, "Exceeded maximum number of tentative downloads."
+        raise DownloadArchiveException, "Exceeded maximum number of tentative downloads for #{current_time}."
     end
     
     def cache(current_time)
@@ -157,12 +179,17 @@ class OnlineGHAProvider < GHAProvider
                     @cache.put(filename, content)
                     return
                 end
-            rescue Errno::ECONNRESET
+            rescue Errno::ECONNRESET => e
+                @logger.warn("A server error temporary prevented the download of #{current_time}: " + e.message)
                 next
-            rescue Zlib::GzipFile::Error
-                raise $!
-            rescue
-                @logger.warn($!)
+            rescue OpenURI::HTTPError => e
+                code = e.io.status[0]
+                if code.start_with?("5")
+                    @logger.warn("A server error temporary prevented the download of #{current_time}: " + e.message)
+                    next
+                else
+                    raise e
+                end
             end
         end
     end
@@ -172,11 +199,11 @@ class OnlineGHAProvider < GHAProvider
             any_ready = Thread.promise
             
             @logger.info("Proactively scheduling download tasks...")
-            self.each_date(from, to) do |current_date|
-                @pool.process(current_date) do |current_date|
-                    cache(current_date)
+            self.each_time(from, to) do |current_time|
+                @pool.process(current_time) do |current_time|
+                    cache(current_time)
                     any_ready << true
-                    @logger.info("Proactively cached #{current_date}. Cache size: #{@cache.size}")
+                    @logger.info("Proactively cached #{current_time}. Cache size: #{@cache.size}")
                 end
             end
             
@@ -221,7 +248,7 @@ class OnlineGHAProvider < GHAProvider
         end
     end
     
-    class DownloadArchiveException < Exception
+    class DownloadArchiveException < GHAProvider::GHAException
     end
 end
 
@@ -234,8 +261,20 @@ class FolderGHAProvider < GHAProvider
     
     def get(current_time)        
         filename = self.get_gha_filename(current_time)
-        File.open(File.join(@folder, filename), "rb") do |gz|
-            return self.read_gha_file(gz)
+        complete_filename = File.join(@folder, filename)
+        mode = "rb"
+        
+        unless FileTest.exist?(complete_filename)
+            complete_filename = complete_filename.sub(".gz", "")
+            mode = "r"
+        end
+        
+        unless FileTest.exist?(complete_filename)
+            raise GHAException.new("Cannot find any file (neither `.json.gz` nor `.json`) for #{current_time}")
+        end
+        
+        File.open(complete_filename, mode) do |file|
+            return self.read_gha_file(file)
         end
     end
 end
@@ -264,17 +303,17 @@ class GHADownloader
     
     def download(from = Time.gm(2015, 1, 1), to = Time.now)
         archive = []
-        self.each_date(from, to) do |current_date|
-            filename = self.get_gha_filename(current_date)
+        self.each_time(from, to) do |current_time|
+            filename = self.get_gha_filename(current_time)
             out_filename = filename.clone
             out_filename.gsub!(".json.gz", ".json") if @decompress
             
             target_file = File.join(@folder, out_filename)
             if FileTest.exist?(target_file)
-                @logger.info("Skipping existing file for #{current_date}")
+                @logger.info("Skipping existing file for #{current_time}")
                 next
             else
-                @logger.info("Downloading file for #{current_date}")
+                @logger.info("Downloading file for #{current_time}")
             end
             
             File.open(target_file, 'w') do |f|
