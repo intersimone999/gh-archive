@@ -13,9 +13,14 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Set up Ruby 2.6
-      uses: actions/setup-ruby@v1
+      uses: ruby/setup-ruby@v1
       with:
-        ruby-version: 2.6.x
+        ruby-version: 3.0
+
+    - name: Test
+      run: |
+        gem install rake
+        rake test
 
     - name: Publish to GPR
       run: |
