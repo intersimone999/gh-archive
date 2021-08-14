@@ -19,7 +19,8 @@ jobs:
 
     - name: Test
       run: |
-        gem install rake
+        gem install rake bundler
+        bundle install
         rake test
 
     - name: Publish to GPR

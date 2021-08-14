@@ -1,4 +1,4 @@
-require 'gh-archive'
+require_relative File.expand_path("../../lib/gh-archive", __FILE__)
 require 'rspec/autorun'
 
 describe OnlineGHAProvider do
