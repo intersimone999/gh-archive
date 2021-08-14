@@ -56,7 +56,14 @@ class GHAProvider
         @includes = {}
         @excludes = {}
         
+        @checkpoint_name = nil
         @use_json = true
+    end
+    
+    def use_checkpoint(filename)
+        @checkpoint_name = filename
+        
+        return self
     end
     
     def parse_events
@@ -67,7 +74,10 @@ class GHAProvider
     
     def logger=(logger)
         @logger = logger
+        
+        return self
     end
+    alias :use_logger :logger=
     
     def get(date)
         raise "Not implemented"
@@ -94,6 +104,16 @@ class GHAProvider
     def each(from = Time.gm(2015, 1, 1), to = Time.now)
         exceptions = []
         
+        if @checkpoint_name && FileTest.exist?(@checkpoint_name)
+            # Note that this throws an exception if the file is not readable. This is the intended behavior.
+            # As opposed to that, failing to save the checkpoint information just results in a warning on the log.
+            loaded_from = Marshal.load(File.read(@checkpoint_name))
+            raise "The loaded checkpoint (#{loaded_from}) occurs before the current from date (#{from})" if loaded_from < from
+            
+            @logger.info("Valid checkpoint loaded. Restored execution from #{loaded_from}.")
+            from = loaded_from
+        end
+        
         self.each_time(from, to) do |current_time|
             events = []
             begin
@@ -105,6 +125,18 @@ class GHAProvider
                 @logger.error("An exception occurred for #{current_time}: #{e.message}")
                 exceptions << e
                 next
+            end
+            
+            if @checkpoint_name
+                begin
+                    File.open(@checkpoint_name, "wb") do |f|
+                        f.write(Marshal.dump(current_time))
+                    end
+                rescue
+                    @logger.warn(
+                        "Unable to save the checkpoint at the specified location (#{File.expand_path(@checkpoint_name)})."
+                    )
+                end
             end
             
             events.each do |event|
@@ -129,6 +161,18 @@ class GHAProvider
             
             events.clear
             GC.start
+        end
+        
+        if @checkpoint_name
+            begin
+                File.open(@checkpoint_name, "wb") do |f|
+                    f.write(Marshal.dump(to))
+                end
+            rescue
+                @logger.warn(
+                    "Unable to save the checkpoint at the specified location (#{File.expand_path(@checkpoint_name)})."
+                )
+            end
         end
         
         return exceptions
