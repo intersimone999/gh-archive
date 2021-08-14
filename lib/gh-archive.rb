@@ -7,7 +7,7 @@ require 'tmpdir'
 require 'thread/pool'
 require 'thread/promise'
 
-require 'gh-archive/events'
+require_relative File.expand_path('../gh-archive/events', __FILE__)
 
 module GHAUtils
     def get_gha_filename(date)
