@@ -6,7 +6,7 @@ Gem::Specification.new do |s|
   s.description = "Download and analyze the GitHub events stored at GitHub archive"
   s.authors     = ["Simone Scalabrino"]
   s.email       = 's.scalabrino9@gmail.com'
-  s.files       = Dir.glob("lib/*.rb")
+  s.files       = Dir.glob("lib/**/*.rb")
   s.homepage    = 'https://github.com/intersimone999/gh-archive'
   s.license     = "GPL-3.0-only"
   

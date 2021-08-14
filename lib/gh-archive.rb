@@ -7,6 +7,8 @@ require 'tmpdir'
 require 'thread/pool'
 require 'thread/promise'
 
+require 'gh-archive/events'
+
 module GHAUtils
     def get_gha_filename(date)
         return ("%04d-%02d-%02d-%d.json.gz" % [date.year, date.month, date.day, date.hour])
@@ -53,6 +55,14 @@ class GHAProvider
         
         @includes = {}
         @excludes = {}
+        
+        @use_json = true
+    end
+    
+    def parse_events
+        @use_json = false
+        
+        return self
     end
     
     def logger=(logger)
@@ -68,6 +78,8 @@ class GHAProvider
             @includes[key.to_s] = [] unless @includes[key.to_s]
             @includes[key.to_s] << value
         end
+        
+        return self
     end
     
     def exclude(**args)
@@ -75,6 +87,8 @@ class GHAProvider
             @excludes[key.to_s] = [] unless @excludes[key.to_s]
             @excludes[key.to_s] << value
         end
+        
+        return self
     end
     
     def each(from = Time.gm(2015, 1, 1), to = Time.now)
@@ -104,7 +118,11 @@ class GHAProvider
                 end
                 next if skip
                 
-                yield event, current_time
+                if @use_json
+                    yield event, current_time
+                else
+                    yield GHArchive::Event.parse(event), current_time
+                end
             end
             
             @logger.info("Scanned #{current_time}")
