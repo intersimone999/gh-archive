@@ -101,9 +101,7 @@ class GHAProvider
         return self
     end
     
-    def each(from = Time.gm(2015, 1, 1), to = Time.now)
-        exceptions = []
-        
+    def restore_checkpoint(from)
         if @checkpoint_name && FileTest.exist?(@checkpoint_name)
             # Note that this throws an exception if the file is not readable. This is the intended behavior.
             # As opposed to that, failing to save the checkpoint information just results in a warning on the log.
@@ -111,8 +109,31 @@ class GHAProvider
             raise "The loaded checkpoint (#{loaded_from}) occurs before the current from date (#{from})" if loaded_from < from
             
             @logger.info("Valid checkpoint loaded. Restored execution from #{loaded_from}.")
-            from = loaded_from
+            
+            return loaded_from
+        else
+            return from
         end
+    end
+    
+    def update_checkpoint(current_time)
+        if @checkpoint_name
+            begin
+                File.open(@checkpoint_name, "wb") do |f|
+                    f.write(Marshal.dump(current_time))
+                end
+            rescue
+                @logger.warn(
+                    "Unable to save the checkpoint at the specified location (#{File.expand_path(@checkpoint_name)})."
+                )
+            end
+        end
+    end
+    
+    def each(from = Time.gm(2015, 1, 1), to = Time.now)
+        exceptions = []
+        
+        from = restore_checkpoint(from)
         
         self.each_time(from, to) do |current_time|
             events = []
@@ -127,17 +148,7 @@ class GHAProvider
                 next
             end
             
-            if @checkpoint_name
-                begin
-                    File.open(@checkpoint_name, "wb") do |f|
-                        f.write(Marshal.dump(current_time))
-                    end
-                rescue
-                    @logger.warn(
-                        "Unable to save the checkpoint at the specified location (#{File.expand_path(@checkpoint_name)})."
-                    )
-                end
-            end
+            update_checkpoint(current_time)
             
             events.each do |event|
                 skip = false
@@ -163,17 +174,7 @@ class GHAProvider
             GC.start
         end
         
-        if @checkpoint_name
-            begin
-                File.open(@checkpoint_name, "wb") do |f|
-                    f.write(Marshal.dump(to))
-                end
-            rescue
-                @logger.warn(
-                    "Unable to save the checkpoint at the specified location (#{File.expand_path(@checkpoint_name)})."
-                )
-            end
-        end
+        update_checkpoint(to)
         
         return exceptions
     end
@@ -258,10 +259,11 @@ class OnlineGHAProvider < GHAProvider
     
     def each(from = Time.gm(2015, 1, 1), to = Time.now)
         if @proactive
+            real_from = restore_checkpoint(from)
             any_ready = Thread.promise
             
             @logger.info("Proactively scheduling download tasks...")
-            self.each_time(from, to) do |current_time|
+            self.each_time(real_from, to) do |current_time|
                 @pool.process(current_time) do |current_time|
                     cache(current_time)
                     any_ready << true
