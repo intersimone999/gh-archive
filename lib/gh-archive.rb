@@ -9,6 +9,71 @@ require 'thread/promise'
 
 require_relative File.expand_path('../gh-archive/events', __FILE__)
 
+module GHArchive
+    class ThreadPool
+        def initialize(size)
+            @size = size
+            @threads = []
+            @queue = []
+            @mutex = Mutex.new
+            
+            @consumer_thread = Thread.start do
+                while !@shutdown || @threads.size > 0 || @queue.size > 0
+                    sleep 0.1 if @queue.size == 0
+                    @threads.delete_if { |t| !t.alive? }
+                    
+                    if @threads.size < @size && @queue.size > 0
+                        @mutex.synchronize do
+                            args, job = @queue.shift
+                            @threads << Thread.start(*args, &job)
+                        end
+                    end
+                end
+            end
+        end
+        
+        def process(*args, &block)
+            raise "Block expected" unless block_given?
+            raise "Can not add jobs while shutting down" if @shutdown
+            
+            @mutex.synchronize do
+                @queue << [args, block]
+            end
+            
+            return self.enqueued
+        end
+        
+        def shutdown
+            @shutdown = true
+        end
+        
+        def shutdown!
+            self.shutdown
+            @mutex.synchronize do
+                @queue.clear
+            end
+        end
+        
+        def enqueued
+            return @queue.size
+        end
+        
+        def shutdown?
+            @shutdown
+        end
+        
+        def alive?
+            @consumer_thread.alive?
+        end
+        
+        def wait
+            while alive?
+                sleep 0.1
+            end
+        end
+    end
+end
+
 module GHAUtils
     def get_gha_filename(date)
         return ("%04d-%02d-%02d-%d.json.gz" % [date.year, date.month, date.day, date.hour])
@@ -202,7 +267,7 @@ class OnlineGHAProvider < GHAProvider
     
     def proactive(pool_size = 10)
         @proactive = true
-        @pool = Thread.pool(pool_size)
+        @pool = GHArchive::ThreadPool.new(pool_size)
         
         return self
     end
