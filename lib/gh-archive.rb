@@ -202,8 +202,7 @@ class OnlineGHAProvider < GHAProvider
     
     def proactive(pool_size = 10)
         @proactive = true
-        @proactive_pool_size = pool_size
-        @pool = Thread.pool(proactive_pool_size)
+        @pool = Thread.pool(pool_size)
         
         return self
     end
