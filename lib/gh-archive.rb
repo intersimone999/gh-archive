@@ -19,7 +19,7 @@ module GHArchive
             
             @consumer_thread = Thread.start do
                 while !@shutdown || @threads.size > 0 || @queue.size > 0
-                    sleep 0.1 if @queue.size == 0
+                    sleep 0.1 if @queue.size == 0 || @threads.size == @size
                     @threads.delete_if { |t| !t.alive? }
                     
                     if @threads.size < @size && @queue.size > 0
@@ -87,9 +87,10 @@ module GHAUtils
     end
     
     def read_gha_file(file)
-        if file.path.end_with?(".json")
+        
+        if !file.is_a?(StringIO) && file.path.end_with?(".json")
             content = file.read
-        elsif file.path.end_with?(".gz") || file.path.start_with?("/tmp/open-uri")
+        elsif file.is_a?(StringIO) || file.path.end_with?(".gz") || file.path.start_with?("/tmp/open-uri")
             content = read_gha_file_content(file)
         else
             raise "Invalid file extension for #{file.path}: expected `.json.gz` or `json`,"
