@@ -4,7 +4,8 @@ require 'stringio'
 
 describe OnlineGHAProvider do
     it "should work with archives existing on GitHub Archive" do
-        provider = OnlineGHAProvider.new(10, false)
+        provider = OnlineGHAProvider.new
+        provider.max_retries(10)
         
         events = []
         dates = []
@@ -20,7 +21,9 @@ describe OnlineGHAProvider do
     end
     
     it "should work with archives existing on GitHub Archive also in proactive mode" do
-        provider = OnlineGHAProvider.new(10, true, 5)
+        provider = OnlineGHAProvider.new
+        provider.max_retries(10)
+        provider.proactive(5)
         
         events = []
         dates = []
@@ -36,7 +39,9 @@ describe OnlineGHAProvider do
     end
     
     it "should proactively schedule by taking checkpoints into account" do
-        provider = OnlineGHAProvider.new(10, true, 5)
+        provider = OnlineGHAProvider.new
+        provider.max_retries(10)
+        provider.proactive(5)
         
         f = Tempfile.new
         f.write(Marshal.dump(Time.gm(2015,1,1,5)))
@@ -56,7 +61,9 @@ describe OnlineGHAProvider do
     end
     
     it "should work with archives existing on GitHub Archive also in extremely proactive mode" do
-        provider = OnlineGHAProvider.new(10, true, 100)
+        provider = OnlineGHAProvider.new
+        provider.max_retries(10)
+        provider.proactive(100)
         
         events = []
         dates = []
@@ -72,7 +79,8 @@ describe OnlineGHAProvider do
     end
     
     it "should parse the file in the correct order" do
-        provider = OnlineGHAProvider.new(10, false)
+        provider = OnlineGHAProvider.new
+        provider.max_retries(10)
         
         last_time = Time.at(0)
         exceptions = provider.each(Time.gm(2015,1,1,3), Time.gm(2015,1,1,6)) do |event, date|
@@ -83,7 +91,9 @@ describe OnlineGHAProvider do
     end
     
     it "should parse the file in the correct order also in proactive mode" do
-        provider = OnlineGHAProvider.new(10, true, 5)
+        provider = OnlineGHAProvider.new
+        provider.max_retries(10)
+        provider.proactive(5)
         
         last_time = Time.at(0)
         exceptions = provider.each(Time.gm(2015,1,1,3), Time.gm(2015,1,1,6)) do |event, date|
@@ -94,7 +104,8 @@ describe OnlineGHAProvider do
     end
     
     it "should skip unexisting archives" do
-        provider = OnlineGHAProvider.new(10, false)
+        provider = OnlineGHAProvider.new
+        provider.max_retries(10)
         
         events = []
         dates = []

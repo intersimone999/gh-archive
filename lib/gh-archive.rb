@@ -137,6 +137,9 @@ class GHAProvider
         
         self.each_time(from, to) do |current_time|
             events = []
+            
+            update_checkpoint(current_time)
+            
             begin
                 events = self.get(current_time)
             rescue GHAException => e
@@ -147,8 +150,6 @@ class GHAProvider
                 exceptions << e
                 next
             end
-            
-            update_checkpoint(current_time)
             
             events.each do |event|
                 skip = false
@@ -187,11 +188,24 @@ class OnlineGHAProvider < GHAProvider
     def initialize(max_retries = 3, proactive = false, proactive_pool_size = 10)
         super()
         
-        @max_retries = max_retries
-        @proactive = proactive
-        @proactive_pool_size = proactive_pool_size
-        @pool = Thread.pool(proactive_pool_size)
+        self.max_retries(max_retries)
+        self.proactive(proactive_pool_size) if proactive
+        
         @cache = Cache.new
+    end
+    
+    def max_retries(n)
+        @max_retries = n
+        
+        return self
+    end
+    
+    def proactive(pool_size = 10)
+        @proactive = true
+        @proactive_pool_size = pool_size
+        @pool = Thread.pool(proactive_pool_size)
+        
+        return self
     end
     
     def get(current_time)        
