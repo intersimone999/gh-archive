@@ -8,7 +8,7 @@ end
 
 task :release do
     `gem build gh-archive.gemspec`
-    version = eval(File.read(gh-archive.gemspec)).version.to_s
+    version = eval(File.read("gh-archive.gemspec")).version.to_s
     
     built_gem_filename = "gh-archive-#{version}.gem"
     if FileTest.exist?(built_gem_filename)
