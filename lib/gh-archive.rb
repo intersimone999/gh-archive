@@ -332,6 +332,8 @@ class OnlineGHAProvider < GHAProvider
                 else
                     raise e
                 end
+            rescue Zlib::GzipFile::Error => e
+                @logger.warn("Could not unzip, cache and analyze the zip at #{current_time}: " + e.message)
             end
         end
     end
