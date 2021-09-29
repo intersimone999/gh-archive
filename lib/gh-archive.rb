@@ -329,6 +329,8 @@ class OnlineGHAProvider < GHAProvider
                 if code.start_with?("5")
                     @logger.warn("A server error temporary prevented the download of #{current_time}: " + e.message)
                     next
+                elsif code == "404"
+                    @logger.error("File for #{current_time} not found. Skipping because: " + e.message)
                 else
                     raise e
                 end
