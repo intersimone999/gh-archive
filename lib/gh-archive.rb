@@ -318,9 +318,10 @@ class OnlineGHAProvider < GHAProvider
         while @cache.full?
             sleep 1
         end
+        
+        filename = self.get_gha_filename(current_time)
         @max_retries.times do
             begin
-                filename = self.get_gha_filename(current_time)
                 URI.open("http://data.gharchive.org/#{filename}") do |gz|
                     content = self.read_gha_file(gz)
                     @cache.put(filename, content)
@@ -394,7 +395,9 @@ class OnlineGHAProvider < GHAProvider
         end
         
         def has?(name)
-            return @cache.has_key?(name)
+            @mutex.synchronize do
+                return @cache.has_key?(name)
+            end
         end
         
         def full?
