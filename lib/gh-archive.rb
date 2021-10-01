@@ -285,7 +285,12 @@ class OnlineGHAProvider < GHAProvider
                         sleep 1
                     end
 
-                    return @cache.get(filename)
+                    data = @cache.get(filename)
+                    if data
+                        return data
+                    else
+                        raise DownloadArchiveException, "Could not scan #{filename}: data unavailable."
+                    end
                 else
                     URI.open("http://data.gharchive.org/#{filename}") do |gz|
                         return self.read_gha_file(gz)
@@ -338,6 +343,8 @@ class OnlineGHAProvider < GHAProvider
                 @logger.warn("Could not unzip, cache and analyze the zip at #{current_time}: " + e.message)
             end
         end
+        
+        @cache.put(filename, nil) unless @cache.has?(filename)
     end
     
     def each(from = Time.gm(2015, 1, 1), to = Time.now)
