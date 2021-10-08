@@ -1,9 +1,9 @@
 require_relative File.expand_path("../../lib/gh-archive", __FILE__)
 require 'rspec/autorun'
 
-describe GHAProvider do
+describe GHArchive::Provider do
     it "should parse events when asked for" do
-        provider = FolderGHAProvider.new("#{File.dirname(File.expand_path($0))}/test_folder")
+        provider = GHArchive::FolderProvider.new("#{File.dirname(File.expand_path($0))}/test_folder")
         
         events = []
         dates = []
@@ -18,7 +18,7 @@ describe GHAProvider do
     end
     
     it "should only contain unparsed events by default" do
-        provider = FolderGHAProvider.new("#{File.dirname(File.expand_path($0))}/test_folder")
+        provider = GHArchive::FolderProvider.new("#{File.dirname(File.expand_path($0))}/test_folder")
         
         events = []
         dates = []
@@ -33,7 +33,7 @@ describe GHAProvider do
     end
     
     it "should correctly parse all the types of events and entities" do
-        provider = FolderGHAProvider.new("#{File.dirname(File.expand_path($0))}/test_folder")
+        provider = GHArchive::FolderProvider.new("#{File.dirname(File.expand_path($0))}/test_folder")
         
         events = []
         dates = []

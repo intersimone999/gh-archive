@@ -1,5 +1,5 @@
 require 'time'
-require_relative File.expand_path('../entities', __FILE__)
+require_relative 'entities'
 
 module GHArchive
     class Event

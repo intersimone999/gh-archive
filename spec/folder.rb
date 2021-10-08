@@ -2,9 +2,9 @@ require_relative File.expand_path("../../lib/gh-archive", __FILE__)
 require 'tempfile'
 require 'rspec/autorun'
 
-describe FolderGHAProvider do
+describe GHArchive::FolderProvider do
     it "should process all the compressed files" do
-        provider = FolderGHAProvider.new("#{File.dirname(File.expand_path($0))}/test_folder")
+        provider = GHArchive::FolderProvider.new("#{File.dirname(File.expand_path($0))}/test_folder")
         
         events = []
         dates = []
@@ -20,7 +20,7 @@ describe FolderGHAProvider do
     end
     
     it "should process all the uncompressed files" do
-        provider = FolderGHAProvider.new("#{File.dirname(File.expand_path($0))}/test_folder")
+        provider = GHArchive::FolderProvider.new("#{File.dirname(File.expand_path($0))}/test_folder")
         
         events = []
         dates = []
@@ -36,7 +36,7 @@ describe FolderGHAProvider do
     end
     
     it "should restore the execution when using checkpoints" do
-        provider = FolderGHAProvider.new("#{File.dirname(File.expand_path($0))}/test_folder")
+        provider = GHArchive::FolderProvider.new("#{File.dirname(File.expand_path($0))}/test_folder")
         
         dates = []
         
@@ -62,7 +62,7 @@ describe FolderGHAProvider do
     end
     
     it "should not analyze twice the last date when using checkpoints" do
-        provider = FolderGHAProvider.new("#{File.dirname(File.expand_path($0))}/test_folder")
+        provider = GHArchive::FolderProvider.new("#{File.dirname(File.expand_path($0))}/test_folder")
         
         dates = []
         
@@ -91,7 +91,7 @@ describe FolderGHAProvider do
     end
     
     it "should raise an exception when the file is not a checkpoint" do
-        provider = FolderGHAProvider.new("#{File.dirname(File.expand_path($0))}/test_folder")
+        provider = GHArchive::FolderProvider.new("#{File.dirname(File.expand_path($0))}/test_folder")
         
         dates = []
         
@@ -107,7 +107,7 @@ describe FolderGHAProvider do
     end
     
     it "should skip unexisting files" do
-        provider = FolderGHAProvider.new("#{File.dirname(File.expand_path($0))}/test_folder")
+        provider = GHArchive::FolderProvider.new("#{File.dirname(File.expand_path($0))}/test_folder")
         
         events = []
         dates = []
@@ -123,7 +123,7 @@ describe FolderGHAProvider do
     end
     
     it "should skip compromised gz files" do
-        provider = FolderGHAProvider.new("#{File.dirname(File.expand_path($0))}/test_folder")
+        provider = GHArchive::FolderProvider.new("#{File.dirname(File.expand_path($0))}/test_folder")
         
         dates = []
         

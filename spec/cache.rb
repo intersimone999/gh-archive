@@ -1,9 +1,9 @@
 require_relative File.expand_path("../../lib/gh-archive", __FILE__)
 require 'rspec/autorun'
 
-describe OnlineGHAProvider::Cache do
+describe GHArchive::OnlineProvider::Cache do
     it 'should not leak memory' do
-        cache = OnlineGHAProvider::Cache.new
+        cache = GHArchive::OnlineProvider::Cache.new
         
         10.times do |i|
             free_memory_before_allocating = GC.stat[:heap_free_slots]

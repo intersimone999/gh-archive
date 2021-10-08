@@ -1,4 +1,5 @@
 require 'time'
+require_relative 'core'
 
 module GHArchive
     Repository = Struct.new(:id, :name, :url)

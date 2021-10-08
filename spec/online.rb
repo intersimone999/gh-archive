@@ -2,9 +2,9 @@ require_relative File.expand_path("../../lib/gh-archive", __FILE__)
 require 'rspec/autorun'
 require 'stringio'
 
-describe OnlineGHAProvider do
+describe GHArchive::OnlineProvider do
     it "should work with archives existing on GitHub Archive" do
-        provider = OnlineGHAProvider.new
+        provider = GHArchive::OnlineProvider.new
         provider.max_retries(10)
         
         events = []
@@ -21,7 +21,7 @@ describe OnlineGHAProvider do
     end
     
     it "should work with archives existing on GitHub Archive also in proactive mode" do
-        provider = OnlineGHAProvider.new
+        provider = GHArchive::OnlineProvider.new
         provider.max_retries(10)
         provider.proactive(5)
         
@@ -39,7 +39,7 @@ describe OnlineGHAProvider do
     end
     
     it "should proactively schedule by taking checkpoints into account" do
-        provider = OnlineGHAProvider.new
+        provider = GHArchive::OnlineProvider.new
         provider.max_retries(10)
         provider.proactive(5)
         
@@ -61,7 +61,7 @@ describe OnlineGHAProvider do
     end
     
     it "should work with archives existing on GitHub Archive also in extremely proactive mode" do
-        provider = OnlineGHAProvider.new
+        provider = GHArchive::OnlineProvider.new
         provider.max_retries(10)
         provider.proactive(100)
         
@@ -79,7 +79,7 @@ describe OnlineGHAProvider do
     end
     
     it "should parse the file in the correct order" do
-        provider = OnlineGHAProvider.new
+        provider = GHArchive::OnlineProvider.new
         provider.max_retries(10)
         
         last_time = Time.at(0)
@@ -91,7 +91,7 @@ describe OnlineGHAProvider do
     end
     
     it "should parse the file in the correct order also in proactive mode" do
-        provider = OnlineGHAProvider.new
+        provider = GHArchive::OnlineProvider.new
         provider.max_retries(10)
         provider.proactive(5)
         
@@ -104,7 +104,7 @@ describe OnlineGHAProvider do
     end
     
     it "should skip unexisting archives" do
-        provider = OnlineGHAProvider.new
+        provider = GHArchive::OnlineProvider.new
         provider.max_retries(10)
         
         events = []
